@@ -8,8 +8,15 @@ namespace MazeSolver
 {
     public class WallNode
     {
-        public int X { get; set; }
-        public int Y { get; set; }
+        public int NodeId { get; set; }
+        public int PixleX { get; set; }
+        public int PixleY { get; set; }
+
+        public int PosX { get; set; }
+        public int PosY { get; set; }
+
+        public bool isFork { get; set; }
+        public bool isDeadEnd { get; set; }
 
         public WallState LeftWall { get; set; }
         public WallState RightWall { get; set; }

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace MazeSolver
 {
-    public class SolvedPath
+    public class Path
     {
         public List<WallNode> wallNodes = new List<WallNode>();
     }
