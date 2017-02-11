@@ -42,6 +42,7 @@ namespace MazeSolver
                     nodeX++;
                 }
                 nodes[0, 0].TopWall = WallState.Entrance;
+                Console.Clear();
                 Solve(nodes[0, 0]);
                 Console.ReadKey();
             }   
@@ -53,50 +54,111 @@ namespace MazeSolver
         
         public static void Solve(WallNode node)
         {
-            
-            //Thread t = new Thread(() =>
+            Path path = new Path();
+            //while (!node.isDeadEnd)
             //{
-               // Path path = new Path();
-                while (!node.isDeadEnd)
+
+                path.wallNodes.Add(node);
+                if (node.LeftWall != WallState.Open && node.RightWall != WallState.Open && node.TopWall != WallState.Open && node.BottomWall != WallState.Open)
                 {
-                    //path.wallNodes.Add(node);
-                    if (node.LeftWall != WallState.Open && node.RightWall != WallState.Open && node.TopWall != WallState.Open && node.BottomWall != WallState.Open)
+                    node.isDeadEnd = true;
+                    Console.WriteLine("Path is dead Jim! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
+                    //path.wallNodes.Clear();
+                }
+                if (node.LeftWall == WallState.Open && !node.isFork)
+                {
+                    nodes[node.PosX - 1, node.PosY].RightWall = WallState.Entrance;
+                    Console.WriteLine("Going Left! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
+                    Solve(nodes[node.PosX - 1, node.PosY]);
+                }
+                else if (node.RightWall == WallState.Open && !node.isFork)
+                {
+                    nodes[node.PosX + 1, node.PosY].LeftWall = WallState.Entrance;
+                    Console.WriteLine("Going right! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
+                    Solve(nodes[node.PosX + 1, node.PosY]);
+                }
+                else if (node.TopWall == WallState.Open && !node.isFork)
+                {
+                    nodes[node.PosX, node.PosY - 1].BottomWall = WallState.Entrance;
+                    Console.WriteLine("Going up! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
+                    Solve(nodes[node.PosX, node.PosY - 1]);
+                }
+                else if (node.BottomWall == WallState.Open && !node.isFork)
+                {
+                    nodes[node.PosX, node.PosY + 1].TopWall = WallState.Entrance;
+                    Console.WriteLine("Going down! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
+                    Solve(nodes[node.PosX, node.PosY + 1]);
+                }
+                if (node.isFork)
+                {
+                    if (node.TopWall == WallState.Open)
                     {
-                        node.isDeadEnd = true;
-                        //path.wallNodes.Clear();
-                        Console.WriteLine("Path is dead Jim! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
+                        node.TopWall = WallState.Closed;
+                        node.isFork = false;
+                        Solve(node);
+                        Thread t = new Thread(() =>
+                        {
+                            Path newPath = new Path();
+                            newPath = path;
+                            nodes[node.PosX, node.PosY - 1].BottomWall = WallState.Entrance;
+                            Console.WriteLine("Going up! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
+                            Solve(nodes[node.PosX, node.PosY - 1]);
+                        });
+                        t.Start();
                     }
-                    if (node.LeftWall == WallState.Open && !node.isFork)
+                    else if (node.BottomWall == WallState.Open)
                     {
-                        nodes[node.PosX - 1, node.PosY].RightWall = WallState.Entrance;
-                        Solve(nodes[node.PosX - 1, node.PosY]);
-                        Console.WriteLine("Going Left! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
+                        node.BottomWall = WallState.Closed;
+                        node.isFork = false;
+                        Solve(node);
+                        Thread t = new Thread(() =>
+                        {
+                            Path newPath = new Path();
+                            newPath = path;
+                            nodes[node.PosX, node.PosY + 1].TopWall = WallState.Entrance;
+                            Console.WriteLine("Going down! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
+                            Solve(nodes[node.PosX, node.PosY + 1]);
+                        });
+                        t.Start();
                     }
-                    else if (node.RightWall == WallState.Open && !node.isFork)
+                    else if (node.LeftWall == WallState.Open)
                     {
-                        nodes[node.PosX + 1, node.PosY].LeftWall = WallState.Entrance;
-                        Solve(nodes[node.PosX + 1, node.PosY]);
-                        Console.WriteLine("Going right! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
+                        node.LeftWall = WallState.Closed;
+                        node.isFork = false;
+                        Solve(node);
+                        Thread t = new Thread(() =>
+                        {
+                            Path newPath = new Path();
+                            newPath = path;
+                            nodes[node.PosX - 1, node.PosY].RightWall = WallState.Entrance;
+                            Console.WriteLine("Going Left! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
+                            Solve(nodes[node.PosX - 1, node.PosY]);
+                        });
+                        t.Start();
                     }
-                    else if (node.TopWall == WallState.Open && !node.isFork)
+                    else if (node.RightWall == WallState.Open)
                     {
-                        nodes[node.PosX, node.PosY - 1].BottomWall = WallState.Entrance;
-                        Solve(nodes[node.PosX, node.PosY - 1]);
-                        Console.WriteLine("Going up! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
-                    }
-                    else if (node.BottomWall == WallState.Open && !node.isFork)
-                    {
-                        nodes[node.PosX, node.PosY + 1].TopWall = WallState.Entrance;
-                        Solve(nodes[node.PosX, node.PosY + 1]);
-                        Console.WriteLine("Going down! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
+                        node.RightWall = WallState.Closed;
+                        node.isFork = false;
+                        Solve(node);
+                        Thread t = new Thread(() =>
+                        {
+                            Path newPath = new Path();
+                            newPath = path;
+                            nodes[node.PosX + 1, node.PosY].LeftWall = WallState.Entrance;
+                            Console.WriteLine("Going right! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
+                            Solve(nodes[node.PosX + 1, node.PosY]);
+                        });
+                        t.Start();
                     }
                 }
-            //});
-            //t.Start();
+            //}
+
         }
 
         public static WallNode CreateNode(int x, int y, int posX, int posY, Color top, Color bottom, Color left, Color right, int id)
         {
+            Console.WriteLine("Creating Maze Node {0} at {1},{2}", id, x, y);
             WallNode node = new WallNode();
             int numberOfOpenings = 0;
             node.NodeId = id;
