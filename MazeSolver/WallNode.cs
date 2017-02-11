@@ -15,8 +15,7 @@ namespace MazeSolver
         public int PosX { get; set; }
         public int PosY { get; set; }
 
-        public bool isFork { get; set; }
-        public bool isDeadEnd { get; set; }
+        public int NumberOfOpenings { get; set; }
 
         public WallState LeftWall { get; set; }
         public WallState RightWall { get; set; }
