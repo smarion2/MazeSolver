@@ -5,13 +5,15 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Drawing;
 using System.Threading;
+using System.Collections.Concurrent;
 
 namespace MazeSolver
 {
     class Program
     {
         public static WallNode[,] nodes = new WallNode[301, 301];
-        public static bool isSolved = false;
+        public static ConcurrentDictionary<int, ConcurrentQueue<WallNode>> PathList = new ConcurrentDictionary<int, ConcurrentQueue<WallNode>>();
+        public static Object lockerObject = new Object();
         static void Main(string[] args)
         {                    
             using (Image image = Image.FromFile("MAZE.png"))
@@ -28,6 +30,7 @@ namespace MazeSolver
                         Bitmap target = new Bitmap(crop.Width, crop.Height);
                         using (Graphics g = Graphics.FromImage(target))
                         {
+                            
                             g.DrawImage(image, new Rectangle(0, 0, target.Width, target.Height), crop, GraphicsUnit.Pixel);
                             Color topTest = target.GetPixel(3, 0);
                             Color bottomTest = target.GetPixel(3, 5);
@@ -43,31 +46,68 @@ namespace MazeSolver
                 }
                 nodes[0, 0].TopWall = WallState.Entrance;
                 Console.Clear();
+                PathList[Thread.CurrentThread.ManagedThreadId] = new ConcurrentQueue<WallNode>();
                 Solve(nodes[0, 0]);
                 while (true) ;
                 Console.ReadKey();
             }   
         }
-        public static void CreateNewPath(WallNode node, Path path)
+        public static void DrawAnswer(ConcurrentQueue<WallNode> path)
         {
-
+            //IList<WallNode> readOnlyPath = path.AsReadOnly();
+            Console.Clear();
+            int nodesLeft = 0;
+            Console.WriteLine("Drawing solution");
+            Bitmap maze = new Bitmap("MAZE.png");
+            Bitmap solvedMaze = new Bitmap(maze.Width, maze.Height);
+            using (Graphics g = Graphics.FromImage(solvedMaze))
+            {
+                g.DrawImage(maze, 0, 0, solvedMaze.Width, solvedMaze.Height);
+                for (int i = 0; i < path.Count - 1; i++)
+                {
+                    nodesLeft++;
+                    Console.WriteLine("Drawing path... Remaining nodes: " + (path.Count - nodesLeft));
+                    for (int x = 0; x < 6; x++)
+                    {
+                        for (int y = 0; y < 6; y++)
+                        {
+                            WallNode node = new WallNode();
+                            path.TryDequeue(out node);
+                            if (node != null)
+                            {
+                                if (solvedMaze.GetPixel(node.PixleX + x, node.PixleY + y).Name == "ffffffff")
+                                {
+                                    solvedMaze.SetPixel(node.PixleX + x, node.PixleY + y, Color.Aqua);
+                                }
+                            }
+                        }
+                    }
+                    solvedMaze.Save("Solved.png");
+                }
+            }
         }
-        
+        public static int Counter = 0;
         public static void Solve(WallNode node)
         {
-            //Path path = new Path();
+            Counter++;     
+            lock (lockerObject)
+            {
+                //PathList[Thread.CurrentThread.ManagedThreadId] = path.wallNodes;
+                //PathList[Thread.CurrentThread.ManagedThreadId].Enqueue(node);
+                ConcurrentQueue<WallNode> nodeQueue = PathList[Thread.CurrentThread.ManagedThreadId];
+                nodeQueue.Enqueue(node);
+                PathList.AddOrUpdate(Thread.CurrentThread.ManagedThreadId, nodeQueue, (k, v) => nodeQueue);
+            }
 
-            //path.wallNodes.Add(node);
+           // path.wallNodes.Add(node);
             if (node.NodeId == 90300)
             {
+                Console.WriteLine("Move Count: " + Counter);
                 Console.WriteLine("!!!!!!!!!!MAZED SOLVED!!!!!!!");
+                DrawAnswer(PathList[Thread.CurrentThread.ManagedThreadId]);
                 return;
             }
-            if (node.LeftWall != WallState.Open && node.RightWall != WallState.Open && node.TopWall != WallState.Open && node.BottomWall != WallState.Open)
-            {
-                Console.WriteLine("Path is dead Jim! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
-                //path.wallNodes.Clear();
-            }
+
             if (node.LeftWall == WallState.Open && node.NumberOfOpenings <= 2)
             {
                 nodes[node.PosX - 1, node.PosY].RightWall = WallState.Entrance;
@@ -94,14 +134,20 @@ namespace MazeSolver
             }
             if (node.NumberOfOpenings > 2)
             {
+                
                 if (node.TopWall == WallState.Open)
                 {
+                    int currentThreadId = Thread.CurrentThread.ManagedThreadId;
                     node.TopWall = WallState.Closed;
                     node.NumberOfOpenings--;
                     Thread t = new Thread(() =>
                     {
-                        Path newPath = new Path();
-                        //newPath = path;
+                        lock (lockerObject)
+                        {
+                            
+                            //PathList[Thread.CurrentThread.ManagedThreadId] = new ConcurrentQueue<WallNode>();
+                            PathList.TryAdd(Thread.CurrentThread.ManagedThreadId, PathList[currentThreadId]);
+                        }
                         nodes[node.PosX, node.PosY - 1].BottomWall = WallState.Entrance;
                         Console.WriteLine("Fork in the road... Going up! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
                         Solve(nodes[node.PosX, node.PosY - 1]);
@@ -112,12 +158,17 @@ namespace MazeSolver
                 }
                 else if (node.BottomWall == WallState.Open)
                 {
+                    int currentThreadId = Thread.CurrentThread.ManagedThreadId;
                     node.BottomWall = WallState.Closed;
                     node.NumberOfOpenings--;
                     Thread t = new Thread(() =>
                     {
-                        Path newPath = new Path();
-                        //newPath = path;
+                        lock (lockerObject)
+                        {
+                            //PathList[Thread.CurrentThread.ManagedThreadId] = new ConcurrentQueue<WallNode>();
+                            //PathList[Thread.CurrentThread.ManagedThreadId] = PathList[currentThreadId];
+                            PathList.TryAdd(Thread.CurrentThread.ManagedThreadId, PathList[currentThreadId]);
+                        }
                         nodes[node.PosX, node.PosY + 1].TopWall = WallState.Entrance;
                         Console.WriteLine("Fork in the road... Going down! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
                         Solve(nodes[node.PosX, node.PosY + 1]);
@@ -128,12 +179,17 @@ namespace MazeSolver
                 }
                 else if (node.LeftWall == WallState.Open)
                 {
+                    int currentThreadId = Thread.CurrentThread.ManagedThreadId;
                     node.LeftWall = WallState.Closed;
                     node.NumberOfOpenings--;
                     Thread t = new Thread(() =>
                     {
-                        Path newPath = new Path();
-                        //newPath = path;
+                        lock (lockerObject)
+                        {
+                            //PathList[Thread.CurrentThread.ManagedThreadId] = new ConcurrentQueue<WallNode>();
+                            // PathList[Thread.CurrentThread.ManagedThreadId] = PathList[currentThreadId];
+                            PathList.TryAdd(Thread.CurrentThread.ManagedThreadId, PathList[currentThreadId]);
+                        }
                         nodes[node.PosX - 1, node.PosY].RightWall = WallState.Entrance;
                         Console.WriteLine("Fork in the road... Going Left! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
                         Solve(nodes[node.PosX - 1, node.PosY]);
@@ -144,12 +200,17 @@ namespace MazeSolver
                 }
                 else if (node.RightWall == WallState.Open)
                 {
+                    int currentThreadId = Thread.CurrentThread.ManagedThreadId;
                     node.RightWall = WallState.Closed;
                     node.NumberOfOpenings--;
                     Thread t = new Thread(() =>
                     {
-                        Path newPath = new Path();
-                        //newPath = path;
+                        lock (lockerObject)
+                        {
+                            //PathList[Thread.CurrentThread.ManagedThreadId] = new ConcurrentQueue<WallNode>();
+                            //PathList[Thread.CurrentThread.ManagedThreadId] = PathList[currentThreadId];
+                            PathList.TryAdd(Thread.CurrentThread.ManagedThreadId, PathList[currentThreadId]);
+                        }
                         nodes[node.PosX + 1, node.PosY].LeftWall = WallState.Entrance;
                         Console.WriteLine("Fork in the road... Going right! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
                         Solve(nodes[node.PosX + 1, node.PosY]);
@@ -158,6 +219,18 @@ namespace MazeSolver
                     t.Start();
                     Solve(node);
                 }
+            }
+            if (node.LeftWall != WallState.Open && node.RightWall != WallState.Open && node.TopWall != WallState.Open && node.BottomWall != WallState.Open)
+            {
+                lock (lockerObject)
+                {
+                    //Thread.Sleep(100);
+                    //PathList[Thread.CurrentThread.ManagedThreadId].Clear();
+                    //PathList.Remove(Thread.CurrentThread.ManagedThreadId);
+                }
+                //path.wallNodes.Clear();
+                Console.WriteLine("Path is dead Jim! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
+                //path.wallNodes.Clear();
             }
         }
 
