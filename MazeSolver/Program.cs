@@ -54,7 +54,6 @@ namespace MazeSolver
         }
         public static void DrawAnswer(List<WallNode> path)
         {
-            //IList<WallNode> readOnlyPath = path.AsReadOnly();
             Console.Clear();
             int nodesLeft = 0;
             Console.WriteLine("Drawing solution");
@@ -75,7 +74,7 @@ namespace MazeSolver
                             {
                                 if (solvedMaze.GetPixel(path[i].PixleX + x, path[i].PixleY + y).Name == "ffffffff")
                                 {
-                                    solvedMaze.SetPixel(path[i].PixleX + x, path[i].PixleY + y, Color.Aqua);
+                                    solvedMaze.SetPixel(path[i].PixleX + x, path[i].PixleY + y, Color.RoyalBlue);
                                 }
                             }
                         }
@@ -90,14 +89,9 @@ namespace MazeSolver
             Counter++;     
             lock (lockerObject)
             {
-                //PathList[Thread.CurrentThread.ManagedThreadId] = path.wallNodes;
                 PathList[Thread.CurrentThread.ManagedThreadId].Add(node);
-                //ConcurrentQueue<WallNode> nodeQueue = PathList[Thread.CurrentThread.ManagedThreadId];
-                //nodeQueue.Enqueue(node);
-                //PathList.AddOrUpdate(Thread.CurrentThread.ManagedThreadId, nodeQueue, (k, v) => nodeQueue);
             }
 
-           // path.wallNodes.Add(node);
             if (node.NodeId == 90300)
             {
                 Console.WriteLine("Move Count: " + Counter);
@@ -138,19 +132,13 @@ namespace MazeSolver
                     int currentThreadId = Thread.CurrentThread.ManagedThreadId;
                     node.TopWall = WallState.Closed;
                     node.NumberOfOpenings--;
-                    List<WallNode> newQueue = new List<WallNode>();
-                    newQueue.AddRange(PathList[currentThreadId]);
-                    //foreach (var value in PathList[currentThreadId])
-                    //{
-                    //    newQueue.Enqueue(value);
-                    //}
+                    List<WallNode> newList = new List<WallNode>();
+                    newList.AddRange(PathList[currentThreadId]);
                     Thread t = new Thread(() =>
                     {
                         lock (lockerObject)
                         {
-
-                            //PathList[Thread.CurrentThread.ManagedThreadId] = new ConcurrentQueue<WallNode>();
-                            PathList.TryAdd(Thread.CurrentThread.ManagedThreadId, newQueue);
+                            PathList.TryAdd(Thread.CurrentThread.ManagedThreadId, newList);
                         }
                         nodes[node.PosX, node.PosY - 1].BottomWall = WallState.Entrance;
                         Console.WriteLine("Fork in the road... Going up! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
@@ -165,15 +153,11 @@ namespace MazeSolver
                     int currentThreadId = Thread.CurrentThread.ManagedThreadId;
                     node.BottomWall = WallState.Closed;
                     node.NumberOfOpenings--;
-                    List<WallNode> newQueue = new List<WallNode>();
-                    newQueue.AddRange(PathList[currentThreadId]);
-                    //foreach (var value in PathList[currentThreadId])
-                    //{
-                    //    newQueue.Enqueue(value);
-                    //}
+                    List<WallNode> newList = new List<WallNode>();
+                    newList.AddRange(PathList[currentThreadId]);
                     Thread t = new Thread(() =>
                     {
-                        PathList.TryAdd(Thread.CurrentThread.ManagedThreadId, newQueue);
+                        PathList.TryAdd(Thread.CurrentThread.ManagedThreadId, newList);
                         nodes[node.PosX, node.PosY + 1].TopWall = WallState.Entrance;
                         Console.WriteLine("Fork in the road... Going down! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
                         Solve(nodes[node.PosX, node.PosY + 1]);
@@ -187,15 +171,11 @@ namespace MazeSolver
                     int currentThreadId = Thread.CurrentThread.ManagedThreadId;
                     node.LeftWall = WallState.Closed;
                     node.NumberOfOpenings--;
-                    List<WallNode> newQueue = new List<WallNode>();
-                    newQueue.AddRange(PathList[currentThreadId]);
-                    //foreach (var value in PathList[currentThreadId])
-                    //{
-                    //    newQueue.Enqueue(value);
-                    //}
+                    List<WallNode> newList = new List<WallNode>();
+                    newList.AddRange(PathList[currentThreadId]);
                     Thread t = new Thread(() =>
                     {
-                        PathList.TryAdd(Thread.CurrentThread.ManagedThreadId, newQueue);
+                        PathList.TryAdd(Thread.CurrentThread.ManagedThreadId, newList);
                         nodes[node.PosX - 1, node.PosY].RightWall = WallState.Entrance;
                         Console.WriteLine("Fork in the road... Going Left! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
                         Solve(nodes[node.PosX - 1, node.PosY]);
@@ -209,15 +189,11 @@ namespace MazeSolver
                     int currentThreadId = Thread.CurrentThread.ManagedThreadId;
                     node.RightWall = WallState.Closed;
                     node.NumberOfOpenings--;
-                    List<WallNode> newQueue = new List<WallNode>();
-                    newQueue.AddRange(PathList[currentThreadId]);
-                    //foreach (var value in PathList[currentThreadId])
-                    //{
-                    //    newQueue.Enqueue(value);
-                    //}
+                    List<WallNode> newList = new List<WallNode>();
+                    newList.AddRange(PathList[currentThreadId]);
                     Thread t = new Thread(() =>
                     {
-                        PathList.TryAdd(Thread.CurrentThread.ManagedThreadId, newQueue);
+                        PathList.TryAdd(Thread.CurrentThread.ManagedThreadId, newList);
                         nodes[node.PosX + 1, node.PosY].LeftWall = WallState.Entrance;
                         Console.WriteLine("Fork in the road... Going right! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
                         Solve(nodes[node.PosX + 1, node.PosY]);
@@ -231,14 +207,10 @@ namespace MazeSolver
             {
                 lock (lockerObject)
                 {
-                    //Thread.Sleep(200);
-                    //PathList[Thread.CurrentThread.ManagedThreadId].Clear();
                     List<WallNode> removeQueue = new List<WallNode>();
                     PathList.TryRemove(Thread.CurrentThread.ManagedThreadId, out removeQueue);
                 }
-                //path.wallNodes.Clear();
                 Console.WriteLine("Path is dead Jim! On thread: {0} Node ID: {1}", Thread.CurrentThread.ManagedThreadId, node.NodeId);
-                //path.wallNodes.Clear();
             }
         }
 
