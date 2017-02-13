@@ -12,7 +12,7 @@ namespace MazeSolver
     class Program
     {
         public static WallNode[,] nodes = new WallNode[301, 301];
-        public static ConcurrentDictionary<int, ConcurrentQueue<WallNode>> PathList = new ConcurrentDictionary<int, ConcurrentQueue<WallNode>>();
+        public static ConcurrentDictionary<int, List<WallNode>> PathList = new ConcurrentDictionary<int, List<WallNode>>();
         public static Object lockerObject = new Object();
         static void Main(string[] args)
         {                    
@@ -46,13 +46,13 @@ namespace MazeSolver
                 }
                 nodes[0, 0].TopWall = WallState.Entrance;
                 Console.Clear();
-                PathList[Thread.CurrentThread.ManagedThreadId] = new ConcurrentQueue<WallNode>();
+                PathList[Thread.CurrentThread.ManagedThreadId] = new List<WallNode>();
                 Solve(nodes[0, 0]);
                 while (true) ;
                 Console.ReadKey();
             }   
         }
-        public static void DrawAnswer(ConcurrentQueue<WallNode> path)
+        public static void DrawAnswer(List<WallNode> path)
         {
             //IList<WallNode> readOnlyPath = path.AsReadOnly();
             Console.Clear();
@@ -67,17 +67,15 @@ namespace MazeSolver
                 {
                     nodesLeft++;
                     Console.WriteLine("Drawing path... Remaining nodes: " + (path.Count - nodesLeft));
-                    WallNode node = new WallNode();
-                    path.TryDequeue(out node);
                     for (int x = 0; x < 6; x++)
                     {
                         for (int y = 0; y < 6; y++)
                         {
-                            if (node != null)
+                            if (path[i] != null)
                             {
-                                if (solvedMaze.GetPixel(node.PixleX + x, node.PixleY + y).Name == "ffffffff")
+                                if (solvedMaze.GetPixel(path[i].PixleX + x, path[i].PixleY + y).Name == "ffffffff")
                                 {
-                                    solvedMaze.SetPixel(node.PixleX + x, node.PixleY + y, Color.Aqua);
+                                    solvedMaze.SetPixel(path[i].PixleX + x, path[i].PixleY + y, Color.Aqua);
                                 }
                             }
                         }
@@ -93,7 +91,7 @@ namespace MazeSolver
             lock (lockerObject)
             {
                 //PathList[Thread.CurrentThread.ManagedThreadId] = path.wallNodes;
-                PathList[Thread.CurrentThread.ManagedThreadId].Enqueue(node);
+                PathList[Thread.CurrentThread.ManagedThreadId].Add(node);
                 //ConcurrentQueue<WallNode> nodeQueue = PathList[Thread.CurrentThread.ManagedThreadId];
                 //nodeQueue.Enqueue(node);
                 //PathList.AddOrUpdate(Thread.CurrentThread.ManagedThreadId, nodeQueue, (k, v) => nodeQueue);
@@ -140,7 +138,8 @@ namespace MazeSolver
                     int currentThreadId = Thread.CurrentThread.ManagedThreadId;
                     node.TopWall = WallState.Closed;
                     node.NumberOfOpenings--;
-                    ConcurrentQueue<WallNode> newQueue = new ConcurrentQueue<WallNode>(PathList[currentThreadId]);
+                    List<WallNode> newQueue = new List<WallNode>();
+                    newQueue.AddRange(PathList[currentThreadId]);
                     //foreach (var value in PathList[currentThreadId])
                     //{
                     //    newQueue.Enqueue(value);
@@ -166,7 +165,8 @@ namespace MazeSolver
                     int currentThreadId = Thread.CurrentThread.ManagedThreadId;
                     node.BottomWall = WallState.Closed;
                     node.NumberOfOpenings--;
-                    ConcurrentQueue<WallNode> newQueue = new ConcurrentQueue<WallNode>(PathList[currentThreadId]);
+                    List<WallNode> newQueue = new List<WallNode>();
+                    newQueue.AddRange(PathList[currentThreadId]);
                     //foreach (var value in PathList[currentThreadId])
                     //{
                     //    newQueue.Enqueue(value);
@@ -187,7 +187,8 @@ namespace MazeSolver
                     int currentThreadId = Thread.CurrentThread.ManagedThreadId;
                     node.LeftWall = WallState.Closed;
                     node.NumberOfOpenings--;
-                    ConcurrentQueue<WallNode> newQueue = new ConcurrentQueue<WallNode>(PathList[currentThreadId]);
+                    List<WallNode> newQueue = new List<WallNode>();
+                    newQueue.AddRange(PathList[currentThreadId]);
                     //foreach (var value in PathList[currentThreadId])
                     //{
                     //    newQueue.Enqueue(value);
@@ -208,7 +209,8 @@ namespace MazeSolver
                     int currentThreadId = Thread.CurrentThread.ManagedThreadId;
                     node.RightWall = WallState.Closed;
                     node.NumberOfOpenings--;
-                    ConcurrentQueue<WallNode> newQueue = new ConcurrentQueue<WallNode>(PathList[currentThreadId]);
+                    List<WallNode> newQueue = new List<WallNode>();
+                    newQueue.AddRange(PathList[currentThreadId]);
                     //foreach (var value in PathList[currentThreadId])
                     //{
                     //    newQueue.Enqueue(value);
@@ -231,7 +233,7 @@ namespace MazeSolver
                 {
                     //Thread.Sleep(200);
                     //PathList[Thread.CurrentThread.ManagedThreadId].Clear();
-                    ConcurrentQueue<WallNode> removeQueue = new ConcurrentQueue<WallNode>();
+                    List<WallNode> removeQueue = new List<WallNode>();
                     PathList.TryRemove(Thread.CurrentThread.ManagedThreadId, out removeQueue);
                 }
                 //path.wallNodes.Clear();
